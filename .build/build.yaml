@@ -1,0 +1,14 @@
+## Build pipeline
+
+steps:
+  #1 ngambil necessary values 
+    # tag terbaru
+    # substitution variables
+  #2 nge set credential ke cluster
+  #3 nge assign build color
+  #4 nge replace values within the configuration files
+  #5 Docker build
+  #6 Ngepush image ke Artifact Registry
+  #7 Apply si konfigurasi istio
+  #8 Apply si konfigurasi kubernetes
+  #9 ngecek dan ngeremove versi lama

@@ -1,0 +1,21 @@
+services:
+  boiler-next:
+    image: boiler-next:VERSION
+    build:
+      context: .
+      dockerfile: .dockerfiles/Dockerfile.dev
+    container_name: "boiler-next"
+    env_file: .env
+    volumes:
+      - .:/app
+      - .tmp:/app/.tmp
+    ports:
+      - "3000:3000"
+    networks:
+      - default
+      - bridge-network
+networks:
+  default:
+    driver: bridge
+  bridge-network:
+    external: true
