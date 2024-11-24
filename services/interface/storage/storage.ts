@@ -1,4 +1,21 @@
-import bucket from '@/services/adapter/google-storage/google-storage-bucket'
+import bucket from '@/services/adapter/storage/storage-bucket'
+import type { File } from '@google-cloud/storage'
+
+export async function list(
+  { key }:
+  { key: string },
+): Promise<{
+    result: File[] | null
+    error: Error | null
+  }> {
+  const { result, error } = await bucket.list({ key })
+
+  if (!result && error) {
+    return { result: null, error }
+  }
+
+  return { result, error: null }
+}
 
 export async function read(
   { key }:

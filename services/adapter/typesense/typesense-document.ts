@@ -47,7 +47,7 @@ export async function read(
     .search({
       ...params,
       q: params.q || '*',
-      query_by: params.query_by || '*',
+      query_by: params.query_by || '',
       page: params.page || 1,
       limit: params.limit || 10,
       sort_by: params.sort_by || 'createdAt:desc',

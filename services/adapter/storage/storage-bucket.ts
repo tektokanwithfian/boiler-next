@@ -1,5 +1,23 @@
-import { storage } from '@/services/adapter/google-storage/google-storage-client'
-import type { GetSignedUrlConfig } from '@google-cloud/storage'
+import { storage } from '@/services/adapter/storage/storage-client'
+import type { File, GetSignedUrlConfig } from '@google-cloud/storage'
+
+export async function list(
+  { key }:
+  { key: string },
+): Promise<{
+    result: File[] | null
+    error: Error | null
+  }> {
+  try {
+    const [files] = await storage
+      .bucket(process.env.GOOGLE_STORAGE_BUCKET_NAME || '')
+      .getFiles({ prefix: key })
+
+    return { result: files, error: null }
+  } catch (error) {
+    return { result: null, error: error as Error }
+  }
+}
 
 export async function read(
   { key }:
@@ -72,6 +90,7 @@ export async function write(
 }
 
 const bucket = {
+  list,
   read,
   remove,
   write,

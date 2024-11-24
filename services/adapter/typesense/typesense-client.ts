@@ -8,7 +8,7 @@ const {
 
 const options = {
   nodes: [{
-    host: TYPESENSE_HOST && TYPESENSE_HOST !== '' ? TYPESENSE_HOST : 'localhost',
+    host: TYPESENSE_HOST || 'localhost',
     port: TYPESENSE_PORT || 8108,
     protocol: 'http',
   }],
