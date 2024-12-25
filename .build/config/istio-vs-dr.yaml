@@ -1,4 +1,31 @@
-# Virtual Service manifests
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: PROJECT_NAME-dr
+  namespace: default
+spec:
+  host: PROJECT_NAME.default.svc.cluster.local
+  subsets:
+  - name: BUILD_COLOR
+    labels:
+      version: BUILD_COLOR
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
 
-# Destination Rule manifests
-
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: PROJECT_NAME-vs
+  namespace: default
+spec:
+  hosts:
+  - PROJECT_NAME.default.svc.cluster.local
+  http:
+  - route:
+    - destination:
+        host: PROJECT_NAME.default.svc.cluster.local
+        subset: BUILD_COLOR
+      weight: 100

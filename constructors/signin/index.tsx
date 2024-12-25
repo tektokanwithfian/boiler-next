@@ -1,14 +1,16 @@
+import { redirect } from 'next/navigation'
 import { user } from '@/services/interface/auth/auth'
 
 import Content from './components/content'
-import Landing from './components/content-landing/content'
 
 async function Component() {
   const { authenticated } = await user()
 
-  return authenticated
-    ? (<Content />)
-    : (<Landing />)
+  if (authenticated) {
+    redirect('/')
+  }
+
+  return <Content />
 }
 
 export default Component

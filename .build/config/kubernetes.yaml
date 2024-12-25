@@ -1,3 +1,90 @@
-# Deployment manifests
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  creationTimestamp: null
+  labels:
+    app: PROJECT_NAME
+  name: PROJECT_NAME
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app: PROJECT_NAME
+status:
+  loadBalancer: {}
 
-# Service manifests
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  creationTimestamp: null
+  labels:
+    app: PROJECT_NAME
+    version: BUILD_COLOR
+  name: PROJECT_NAME-BUILD_COLOR
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: PROJECT_NAME
+      version: BUILD_COLOR
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+  template:
+    metadata:
+      labels:
+        app: PROJECT_NAME
+        version: BUILD_COLOR
+      annotations: 
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    spec:
+      containers:
+        - image: "gcr.io/PROJECT_ID/PROJECT_NAME:VERSION"
+          imagePullPolicy: IfNotPresent
+          name: PROJECT_NAME
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+          - secretRef:
+              name: PROJECT_NAME-secret
+          volumeMounts:
+          - name: "google-credentials"
+            mountPath: "/secrets"
+            readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: "google-credentials"
+          secret:
+            secretName: "google-credentials"
+status: {}
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: PROJECT_NAME-BUILD_COLOR
+  namespace: default
+spec:
+  maxReplicas: 10
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: PROJECT_NAME-BUILD_COLOR
+  metrics:
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 50

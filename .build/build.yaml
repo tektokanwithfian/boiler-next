@@ -1,14 +1,142 @@
-## Build pipeline
-
 steps:
-  #1 ngambil necessary values 
-    # tag terbaru
-    # substitution variables
-  #2 nge set credential ke cluster
-  #3 nge assign build color
-  #4 nge replace values within the configuration files
-  #5 Docker build
-  #6 Ngepush image ke Artifact Registry
-  #7 Apply si konfigurasi istio
-  #8 Apply si konfigurasi kubernetes
-  #9 ngecek dan ngeremove versi lama
+- name: 'gcr.io/cloud-builders/git'
+  id: 0-Setenv Git tag
+  entrypoint: bash
+  args:
+  - '-c'
+  - |
+
+    git fetch origin --quiet
+    git describe --tags
+    git checkout ${TAG_NAME}
+    git describe --tags
+    
+    echo "PROJECT_ID=$PROJECT_ID" > .build_env
+    echo "TAG_NAME=$TAG_NAME" >> .build_env
+    echo "PROJECT_ID=$PROJECT_ID" > .build_env
+    echo "PROJECT_NAME=$_PROJECT_NAME" >> .build_env
+    echo "VERSION=$TAG_NAME" >> .build_env
+    echo "GATEWAY_HOST=${_GATEWAY_HOST}" >> .build_env
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 1-Setenv cluster
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    gcloud container clusters get-credentials ${_CLUSTER_NAME} --zone=asia-southeast2-a
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 2-Setenv kubernetes config
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+  
+    kubectl get virtualservices.networking.istio.io --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME}
+    kubectl get --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME} virtualservices.networking.istio.io ${_PROJECT_NAME}-vs -o yaml
+
+    if \
+    kubectl get virtualservices.networking.istio.io --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME} | grep -q ${_PROJECT_NAME} && \
+    kubectl get --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME} virtualservices.networking.istio.io ${_PROJECT_NAME}-vs -o yaml | grep -q blue ; then
+      echo "BUILD_COLOR=green" >> .build_env;
+    else
+      echo "BUILD_COLOR=blue" >> .build_env;
+    fi
+        
+    sed -i "s,VERSION,$(cat .build_env | grep VERSION | awk -F"=" '{print $2}'),g" .build/config/kubernetes.yaml
+    sed -i "s,BUILD_COLOR,$(cat .build_env | grep BUILD_COLOR | awk -F"=" '{print $2}'),g" .build/config/kubernetes.yaml
+    sed -i "s,PROJECT_ID,$(cat .build_env | grep PROJECT_ID | awk -F"=" '{print $2}'),g" .build/config/kubernetes.yaml
+    sed -i "s,PROJECT_NAME,${_PROJECT_NAME},g" .build/config/kubernetes.yaml
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 3-Setenv istio config
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+  
+    sed -i "s,PROJECT_NAME,${_PROJECT_NAME},g" .build/config/istio-vs-dr.yaml
+    sed -i "s,BUILD_COLOR,$(cat .build_env | grep BUILD_COLOR | awk -F"=" '{print $2}'),g" .build/config/istio-vs-dr.yaml
+
+    sed -i "s,PROJECT_NAME,${_PROJECT_NAME},g" .build/config/istio-vs-gw.yaml
+    sed -i "s,GATEWAY_HOST,${_GATEWAY_HOST},g" .build/config/istio-vs-gw.yaml
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 3.1-Pub env
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    kubectl get secrets ${_PROJECT_NAME}-secret -o go-template='{{range $k,$v := .data}}{{printf "%s=" $k}}{{if not $v}}{{$v}}{{else}}{{$v | base64decode}}{{end}}{{"\n"}}{{end}}' | tee .env.production
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: 4-Docker build
+  entrypoint: bash
+  args:
+  - '-c'
+  - |
+
+    sed -i "s,PUBLISHABLE_KEY_VALUE,$(cat .env.production | grep NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY | awk -F"=" '{print $2}'),g" .dockerfiles/Dockerfile
+
+    docker build -t gcr.io/${PROJECT_ID}/${_PROJECT_NAME}:$(cat .build_env | grep VERSION | awk -F"=" '{print $2}') --file=.dockerfiles/Dockerfile .
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: 5-Push Image
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    docker push gcr.io/${PROJECT_ID}/${_PROJECT_NAME}:$(cat .build_env | grep VERSION | awk -F"=" '{print $2}')
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 6-Create vs dr
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    kubectl apply -f .build/config/istio-vs-dr.yaml --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME}
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 7-Deploy
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    kubectl apply -f .build/config/kubernetes.yaml --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME}
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 8-Apply gateway
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    kubectl apply -f .build/config/istio-vs-gw.yaml --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME}
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  id: 9-Delete previous deployments
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+
+    if [[ $(cat .build_env | grep BUILD_COLOR | awk -F"=" '{print $2}') == "blue" ]]; then
+      echo "PREV_BUILD_COLOR=green" >> .build_env;
+    else
+      echo "PREV_BUILD_COLOR=blue" >> .build_env;
+    fi
+    
+    if kubectl get deployment | grep -q ${_PROJECT_NAME}-$(cat .build_env | grep PREV_BUILD_COLOR | awk -F"=" '{print $2}'); then
+      sleep 40
+      kubectl delete deployments,hpa ${_PROJECT_NAME}-$(cat .build_env | grep PREV_BUILD_COLOR | awk -F"=" '{print $2}') --cluster gke_${PROJECT_ID}_asia-southeast2-a_${_CLUSTER_NAME} || true
+    else
+      echo "previous service deployment does not exists"
+    fi
+
+timeout: '1600s'
