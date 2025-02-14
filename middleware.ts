@@ -33,16 +33,12 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       return NextResponse.next()
     }
 
-    if (
-      sessionClaims?.metadata?.onboardingComplete
-  && sessionClaims?.metadata?.onboardingTNCAgreed
-    ) {
+    if (sessionClaims?.metadata?.onboardingCompleted) {
       return NextResponse.next()
     }
 
     if (
-      !sessionClaims?.metadata?.onboardingComplete
-  && !sessionClaims?.metadata?.onboardingTNCAgreed
+      !sessionClaims?.metadata?.onboardingCompleted
     ) {
       const onboardingUrl = new URL('/onboarding', req.url)
 

@@ -1,4 +1,5 @@
 import { UserButton } from '@clerk/clerk-react'
+import { UsersRound } from 'lucide-react'
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -27,7 +28,15 @@ function Component({
           <UserButton
             showName={showName}
             appearance={{ elements }}
-          />
+          >
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="Dietin profiles"
+                labelIcon={<UsersRound className="size-4" />}
+                href="/profile"
+              />
+            </UserButton.MenuItems>
+          </UserButton>
         </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>

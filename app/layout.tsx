@@ -1,7 +1,11 @@
 import { ClerkProvider, GoogleOneTap } from '@clerk/nextjs'
 
 import localFont from 'next/font/local'
+
+import Provider from '@/components/app/provider'
 import Tw from '@/components/app/tw'
+import { Toaster } from '@/components/ui/toaster'
+
 import type { Metadata } from 'next'
 import './globals.css'
 
@@ -32,8 +36,11 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased grain`}
         >
-          <GoogleOneTap signInForceRedirectUrl={'/'}/>
-          {children}
+          <GoogleOneTap signInForceRedirectUrl="/" />
+          <Provider>
+            {children}
+          </Provider>
+          <Toaster />
           <Tw />
         </body>
       </html>

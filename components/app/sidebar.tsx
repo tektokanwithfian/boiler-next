@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import Mark from '@/components/app/logo/mark'
+import Mark from '@/components/app/logo/icon'
 import NavigationMain from '@/components/app/navigation/main'
 import NavigationUser from '@/components/app/navigation/user'
 import {

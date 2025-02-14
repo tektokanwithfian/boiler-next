@@ -1,3 +1,4 @@
+import Breadcrumb from '@/components/app/breadcrumb'
 import Sidebar from '@/components/app/sidebar'
 import {
   SidebarInset,
@@ -21,7 +22,8 @@ function Component(
       } as CSSProperties}
     >
       <Sidebar />
-      <SidebarInset className="max-w-screen-2xl mx-auto p-4 grain">
+      <SidebarInset className="max-w-screen-xl mx-auto p-4 bg-white">
+        <Breadcrumb />
         <div className="w-full flex min-h-screen pb-20 md:pb-0">
           {children}
         </div>

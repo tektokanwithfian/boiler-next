@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Mark from '@/components/app/logo/mark'
+import Mark from '@/components/app/logo/icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 

@@ -1,3 +1,5 @@
+'use server'
+
 import typesense from '@/services/adapter/typesense/typesense-document'
 import type { Paging, Query } from '@/services/adapter/typesense/typesense-type'
 import auth from '@/services/interface/auth/auth'
@@ -5,27 +7,22 @@ import auth from '@/services/interface/auth/auth'
 import type { SearchParams } from 'typesense/lib/Typesense/Documents'
 import type { TypesenseError } from 'typesense/lib/Typesense/Errors'
 
-export async function get(
+export async function get<T>(
   { name, paging, query }:
   { name: string, paging: Paging, query: Query },
 ): Promise<{
     result: {
       paging: Paging
-      Query: Query
-      items: Record<string, any>[]
+      query: Query
+      items: T[]
     } | null
     error: TypesenseError | null
   }> {
   const { limit, page } = paging
   const { keyword, field, order } = query
 
-  if (name === 'user') {
-    throw new Error('User search is not implemented')
-  }
-
   const { result: user } = await auth.user()
   const params = {
-    filter_by: `user:${user?.id}`,
     limit,
     page,
     q: keyword,
@@ -34,7 +31,17 @@ export async function get(
   } as SearchParams
 
   if (query.filter) {
-    params.filter_by = `${params.filter_by} && ${query.filter}`
+    params.filter_by = query.filter
+  }
+
+  if (name !== 'user') {
+    const filter = `user:${user?.id}`
+
+    if (query.filter) {
+      params.filter_by = `${filter} && ${query.filter}`
+    } else {
+      params.filter_by = filter
+    }
   }
 
   const { result } = await typesense.read({ name, params })
@@ -43,16 +50,21 @@ export async function get(
   paging.total = result && result.found > 0 ? Math.ceil(result.found / limit!) : 0
   paging.page = result && result.page ? result.page : 1
 
-  const items = result && result.hits ? result.hits.map((hit) => hit.document) : []
+  const items = result && result.hits
+    ? result.hits.map((hit) => hit.document) as T[]
+    : []
 
-  return { result: { paging, Query: query, items }, error: null }
+  return {
+    result: { paging, query, items },
+    error: null,
+  }
 }
 
-export async function getById(
+export async function getById<T>(
   { name, id }:
   { name: string, id: string },
 ): Promise<{
-    result: Record<string, any> | null
+    result: T | null
     error: TypesenseError | null
   }> {
   const { result, error } = await typesense.readById({ id, name })
@@ -60,5 +72,5 @@ export async function getById(
     return { result: null, error }
   }
 
-  return { result, error: null }
+  return { result: result as T, error: null }
 }

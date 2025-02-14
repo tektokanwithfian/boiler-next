@@ -1,4 +1,5 @@
 import bucket from '@/services/adapter/storage/storage-bucket'
+import auth from '@/services/interface/auth/auth'
 import type { File } from '@google-cloud/storage'
 
 export async function list(
@@ -8,7 +9,11 @@ export async function list(
     result: File[] | null
     error: Error | null
   }> {
-  const { result, error } = await bucket.list({ key })
+  const { result: user } = await auth.user()
+  if (!user) {
+    return { result: null, error: new Error('Unauthorised request') }
+  }
+  const { result, error } = await bucket.list({ key: `${user.id}/${key}` })
 
   if (!result && error) {
     return { result: null, error }
@@ -24,7 +29,11 @@ export async function read(
     result: string | null
     error: Error | null
   }> {
-  const { result, error } = await bucket.read({ key })
+  const { result: user } = await auth.user()
+  if (!user) {
+    return { result: null, error: new Error('Unauthorised request') }
+  }
+  const { result, error } = await bucket.read({ key: `${user.id}/${key}` })
 
   if (!result && error) {
     return { result: null, error }
@@ -40,7 +49,11 @@ export async function remove(
     result: { ok: boolean } | null
     error: Error | null
   }> {
-  const { result, error } = await bucket.remove({ key })
+  const { result: user } = await auth.user()
+  if (!user) {
+    return { result: null, error: new Error('Unauthorised request') }
+  }
+  const { result, error } = await bucket.remove({ key: `${user.id}/${key}` })
 
   if (!result && error) {
     return { result: null, error }
@@ -56,7 +69,11 @@ export async function write(
     result: string | null
     error: Error | null
   }> {
-  const { result, error } = await bucket.write({ key, type })
+  const { result: user } = await auth.user()
+  if (!user) {
+    return { result: null, error: new Error('Unauthorised request') }
+  }
+  const { result, error } = await bucket.write({ key: `${user.id}/${key}`, type })
 
   if (!result && error) {
     return { result: null, error }
@@ -66,6 +83,7 @@ export async function write(
 }
 
 const storage = {
+  list,
   read,
   remove,
   write,
